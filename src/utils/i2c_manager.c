@@ -31,20 +31,18 @@ esp_err_t i2c_manager_init(void) {
 }
 
 esp_err_t i2c_manager_write_bytes(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data, size_t len) {
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (dev_addr << 1) | I2C_MASTER_WRITE, true);
-    i2c_master_write_byte()
+    
 }
 
 esp_err_t i2c_manager_read_bytes() {
 
 }
 
-esp_err_t i2c_manager_write_byte(uint8_t dev_addr, uint8_t reg_addr, uint8_t data) {
-    return i2c_manager_write_bytes(dev_addr, reg_addr, &data, 1);
+esp_err_t i2c_manager_write_byte() {
+
 }
 
-esp_err_t i2c_manager_read_byte(uint8_t dev_addr, uint8_t reg_addr, uint8_t *data) {
-    return i2c_manager_read_bytes(dev_addr, reg_addr, data, 1);
+esp_err_t i2c_manager_read_byte() {
+
+
 }
