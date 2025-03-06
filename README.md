@@ -1,4 +1,4 @@
-# flight_controller
+<!-- # flight_controller
 ESP32 based flight contoller
 
 Components:
@@ -154,4 +154,4 @@ build/
 *.bin
 .DS_Store
 ```
-
+ -->
