@@ -152,6 +152,6 @@ lib_deps =
 build/
 *.o
 *.bin
-.DS_Store
+.DS_Sfstore
 ```
  -->
