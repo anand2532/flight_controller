@@ -1,4 +1,3 @@
-// include/drivers/motor_control.h
 #ifndef MOTOR_CONTROL_DRIVER_H
 #define MOTOR_CONTROL_DRIVER_H
 

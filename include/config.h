@@ -2,9 +2,19 @@
 #ifndef QUADCOPTER_GLOBAL_CONFIG_H
 #define QUADCOPTER_GLOBAL_CONFIG_H
 
-// System Configuration
+// Include ESP-IDF headers
+#include "esp_system.h"
+#include "esp_err.h"
+#include "driver/gpio.h"
+
+// // System Configuration
+// #define QUADCOPTER_FIRMWARE_VERSION    "1.0.0"
+// #define QUADCOPTER_HARDWARE_VERSION    "1.0"
+
+#ifdef QUADCOPTER_FIRMWARE_VERSION
+#undef QUADCOPTER_FIRMWARE_VERSION
+#endif
 #define QUADCOPTER_FIRMWARE_VERSION    "1.0.0"
-#define QUADCOPTER_HARDWARE_VERSION    "1.0"
 
 // Flight Control Parameters
 #define FLIGHT_CONTROL_LOOP_RATE_HZ    400     // Control loop frequency

@@ -1,10 +1,10 @@
-// src/control/stabilization.c
 #include <math.h>
 #include <string.h>
 #include <esp_log.h>
 
 #include "control/stabilization.h"
 #include "config.h"
+#include "drivers/radio_receiver.h"
 
 #define TAG "QUADCOPTER_STABILIZATION"
 

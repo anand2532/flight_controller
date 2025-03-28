@@ -1,4 +1,4 @@
-// src/utils/calibration.c
+
 #include <string.h>
 #include <math.h>
 #include <freertos/FreeRTOS.h>
@@ -6,6 +6,7 @@
 #include <esp_system.h>
 #include <esp_log.h>
 #include <nvs_flash.h>
+#include <float.h>
 
 #include "utils/calibration.h"
 #include "drivers/mpu6050.h"

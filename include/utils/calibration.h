@@ -1,4 +1,4 @@
-// include/utils/calibration.h
+
 #ifndef QUADCOPTER_CALIBRATION_H
 #define QUADCOPTER_CALIBRATION_H
 

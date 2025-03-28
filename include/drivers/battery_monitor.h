@@ -1,4 +1,3 @@
-// include/drivers/battery_monitor.h
 #ifndef BATTERY_MONITOR_DRIVER_H
 #define BATTERY_MONITOR_DRIVER_H
 
