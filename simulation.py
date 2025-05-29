@@ -1,159 +1,174 @@
-# import time
-# import random
-# import math
-
-# class ESP32FlightControllerSim:
-#     def __init__(self):
-#         self.roll = 0.0  # degrees
-#         self.pitch = 0.0  # degrees
-#         self.yaw = 0.0  # degrees
-#         self.altitude = 100.0  # meters
-#         self.latitude = 12.9716  # dummy GPS coordinates
-#         self.longitude = 77.5946
-#         self.motor_thrust = 0.5  # 50% thrust
-
-#     def simulate_imu(self):
-#         """ Simulate IMU (Accelerometer + Gyro) data """
-#         self.roll += random.uniform(-0.5, 0.5)  # Small variations
-#         self.pitch += random.uniform(-0.5, 0.5)
-#         self.yaw += random.uniform(-0.5, 0.5)
-
-#     def simulate_barometer(self):
-#         """ Simulate altitude changes """
-#         climb_rate = random.uniform(-1, 1)  # m/s climb or descend
-#         self.altitude += climb_rate
-
-#     def simulate_gps(self):
-#         """ Simulate GPS movement """
-#         self.latitude += random.uniform(-0.0001, 0.0001)
-#         self.longitude += random.uniform(-0.0001, 0.0001)
-
-#     def pid_control(self):
-#         """ Simulate simple PID control """
-#         target_altitude = 120.0  # Target altitude in meters
-#         error = target_altitude - self.altitude
-#         self.motor_thrust = min(max(0.3 + (error * 0.01), 0.3), 1.0)  # PID-like control
-
-#     def display_status(self):
-#         """ Display formatted data in terminal """
-#         print("\033[H\033[J")  # Clear screen
-#         print(f"🚀 ESP32 Flight Controller Simulation")
-#         print("-" * 50)
-#         print(f"IMU Data: Roll: {self.roll:.2f}° | Pitch: {self.pitch:.2f}° | Yaw: {self.yaw:.2f}°")
-#         print(f"GPS Position: {self.latitude:.6f}, {self.longitude:.6f}")
-#         print(f"Altitude: {self.altitude:.2f} m")
-#         print(f"Motor Thrust: {self.motor_thrust:.2f} (30% - 100%)")
-#         print("-" * 50)
-
-#     def run(self):
-#         """ Run the simulation loop """
-#         try:
-#             while True:
-#                 self.simulate_imu()
-#                 self.simulate_barometer()
-#                 self.simulate_gps()
-#                 self.pid_control()
-#                 self.display_status()
-#                 time.sleep(1)
-#         except KeyboardInterrupt:
-#             print("\nSimulation stopped.")
-
-# if __name__ == "__main__":
-#     sim = ESP32FlightControllerSim()
-#     sim.run()
-
-import serial
-import time
 import threading
+import time
 import random
+import serial
+import serial.tools.list_ports
 import matplotlib.pyplot as plt
-import numpy as np
+import matplotlib.animation as animation
+from collections import deque
+import warnings
 
-# Detect ESP32 Connection
-def detect_esp32():
-    try:
-        ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)  # Change port if needed
-        ser.close()
-        print("✅ ESP32 Detected! Starting Simulation...\n")
-        return True
-    except serial.SerialException:
-        print("❌ ESP32 Not Found! Connect the board and restart.")
-        return False
+# Suppress matplotlib warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="matplotlib")
 
-class FlightSimulator:
-    def __init__(self):
-        # Flight Parameters
-        self.altitude = 0
-        self.roll = 0
-        self.pitch = 0
-        self.yaw = 0
-        self.thrust = 0
-        self.lat = 0.0001  # Initialize with a small value
-        self.lon = 0.0001  # Initialize with a small value
+class FlightControllerVisualizer:
+    def __init__(self, port=None):
         self.running = True
+        self.flight_state = "idle"  # idle, takeoff, move, land
+        self.serial_port = port
 
-    def process_command(self, cmd):
-        """ Processes user commands """
-        if cmd == "takeoff":
-            self.altitude = 100
-            self.thrust = 0.8
-        elif cmd == "land":
-            self.altitude = 0
-            self.thrust = 0
-        elif cmd.startswith("move forward"):
-            distance = int(cmd.split()[2])
-            self.lat += distance * 0.0001
-        elif cmd.startswith("turn left"):
-            angle = int(cmd.split()[2])
-            self.yaw -= angle
-        elif cmd.startswith("turn right"):
-            angle = int(cmd.split()[2])
-            self.yaw += angle
+        # Buffers for flight controller data
+        self.temps = deque(maxlen=50)
+        self.humids = deque(maxlen=50)
+        self.aqs = deque(maxlen=50)
+        self.altitudes = deque(maxlen=50)
+        self.pitches = deque(maxlen=50)
+        self.rolls = deque(maxlen=50)
+        self.yaws = deque(maxlen=50)
+        self.times = deque(maxlen=50)
 
-    def generate_sensor_data(self):
-        """ Simulates sensor readings """
+        # Current values
+        self.temp = 0
+        self.humid = 0
+        self.aq = 0
+        self.altitude = 0
+        self.pitch = 0
+        self.roll = 0
+        self.yaw = 0
+
+    @staticmethod
+    def detect_esp32():
+        """Detect if an ESP32 is connected."""
+        ports = serial.tools.list_ports.comports()
+        for port in ports:
+            if "USB" in port.description or "UART" in port.description:
+                print(f"✅ ESP32 detected on port: {port.device}")
+                return port.device
+        return None
+
+    def read_simulated_data(self):
+        """Simulate flight controller data."""
         while self.running:
-            self.roll += random.uniform(-0.5, 0.5)
-            self.pitch += random.uniform(-0.5, 0.5)
-            self.altitude += random.uniform(-1, 1) if self.thrust > 0 else -1
-            self.altitude = max(0, self.altitude)
-            time.sleep(1)
+            # Simulate environmental data (based on Bangalore's typical weather)
+            self.temp = random.uniform(25, 35)  # Temperature in °C
+            self.humid = random.uniform(50, 70)  # Humidity in %
+            self.aq = random.uniform(50, 150)  # Air Quality in ppm
 
-    def plot_animation(self):
-        """ Runs 2D animation """
-        plt.ion()
-        fig, ax = plt.subplots()
-        ax.set_xlim(-0.001, 0.001)
-        ax.set_ylim(-0.001, 0.001)
-        drone, = ax.plot([self.lat], [self.lon], "ro")  # Wrap in lists
+            # Simulate flight movement based on state
+            if self.flight_state == "takeoff":
+                self.altitude += random.uniform(5, 10)  # Increase altitude
+                self.pitch = random.uniform(-5, 5)
+                self.roll = random.uniform(-5, 5)
+                self.yaw = random.uniform(0, 360)
+            elif self.flight_state == "move":
+                self.altitude += random.uniform(-2, 2)  # Slight altitude variation
+                self.pitch = random.uniform(-10, 10)
+                self.roll = random.uniform(-10, 10)
+                self.yaw = (self.yaw + random.uniform(-15, 15)) % 360
+            elif self.flight_state == "land":
+                self.altitude = max(0, self.altitude - random.uniform(5, 10))  # Decrease altitude
+                self.pitch = random.uniform(-5, 5)
+                self.roll = random.uniform(-5, 5)
+                self.yaw = random.uniform(0, 360)
+                if self.altitude == 0:
+                    self.flight_state = "idle"  # Stop movement after landing
 
+            # Append data to buffers
+            self.temps.append(self.temp)
+            self.humids.append(self.humid)
+            self.aqs.append(self.aq)
+            self.altitudes.append(self.altitude)
+            self.pitches.append(self.pitch)
+            self.rolls.append(self.roll)
+            self.yaws.append(self.yaw)
+            self.times.append(time.time())
+
+            # Debugging: Print the latest data
+            print(f"State: {self.flight_state} | Temp: {self.temp:.2f}°C, Humid: {self.humid:.2f}%, AQ: {self.aq:.2f} ppm, "
+                  f"Altitude: {self.altitude:.2f} m, Pitch: {self.pitch:.2f}°, Roll: {self.roll:.2f}°, Yaw: {self.yaw:.2f}°")
+
+            time.sleep(1)  # Simulate data every second
+
+    def update_plot(self, frame, axes):
+        """Update the dashboard with live data."""
+        for ax in axes:
+            ax.clear()
+
+        # Time normalization
+        if self.times:
+            t0 = self.times[0]
+            times = [t - t0 for t in self.times]
+
+            # Plot temperature, humidity, and air quality
+            axes[0].plot(times, self.temps, label=f"Temp: {self.temp:.1f}°C", color='red')
+            axes[0].plot(times, self.humids, label=f"Humidity: {self.humid:.1f}%", color='blue')
+            axes[0].plot(times, self.aqs, label=f"AQ: {self.aq:.1f} ppm", color='green')
+            axes[0].set_title("Environmental Data")
+            axes[0].set_xlabel("Time (s)")
+            axes[0].set_ylabel("Values")
+            axes[0].legend(loc="upper right")
+            axes[0].grid(True)
+
+            # Plot altitude
+            axes[1].plot(times, self.altitudes, label=f"Altitude: {self.altitude:.1f} m", color='purple')
+            axes[1].set_title("Altitude")
+            axes[1].set_xlabel("Time (s)")
+            axes[1].set_ylabel("Altitude (m)")
+            axes[1].legend(loc="upper right")
+            axes[1].grid(True)
+
+            # Plot pitch, roll, and yaw
+            axes[2].plot(times, self.pitches, label=f"Pitch: {self.pitch:.1f}°", color='orange')
+            axes[2].plot(times, self.rolls, label=f"Roll: {self.roll:.1f}°", color='cyan')
+            axes[2].plot(times, self.yaws, label=f"Yaw: {self.yaw:.1f}°", color='magenta')
+            axes[2].set_title("Orientation")
+            axes[2].set_xlabel("Time (s)")
+            axes[2].set_ylabel("Degrees")
+            axes[2].legend(loc="upper right")
+            axes[2].grid(True)
+
+    def listen_for_commands(self):
+        """Listen for user commands to control the flight."""
         while self.running:
-            drone.set_xdata([self.lat])  # Fix: Convert to list
-            drone.set_ydata([self.lon])  # Fix: Convert to list
-            ax.set_title(f"Drone Position | Alt: {self.altitude:.1f}m | Yaw: {self.yaw:.1f}°")
-            plt.draw()
-            plt.pause(0.1)
-
-    def start_command_loop(self):
-        """ Handles user commands in the terminal """
-        print("\n✈️ Flight Command Terminal ✈️")
-        print("Commands: takeoff, move forward X, turn left X, turn right X, land")
-
-        while self.running:
-            cmd = input("\nEnter Command: ").strip()
-            if cmd == "exit":
+            command = input("Enter command (takeoff, move, land, exit): ").strip().lower()
+            if command == "takeoff":
+                self.flight_state = "takeoff"
+            elif command == "move":
+                self.flight_state = "move"
+            elif command == "land":
+                self.flight_state = "land"
+            elif command == "exit":
                 self.running = False
-                break
-            self.process_command(cmd)
+                print("Exiting simulation...")
+            else:
+                print("Invalid command. Please enter 'takeoff', 'move', 'land', or 'exit'.")
 
     def run(self):
-        """ Starts all simulation components """
-        threading.Thread(target=self.generate_sensor_data, daemon=True).start()
-        threading.Thread(target=self.start_command_loop, daemon=True).start()
-        self.plot_animation()
+        """Run the dashboard."""
+        # Start thread for reading simulated data
+        threading.Thread(target=self.read_simulated_data, daemon=True).start()
+
+        # Start thread for listening to commands
+        threading.Thread(target=self.listen_for_commands, daemon=True).start()
+
+        # Setup live plot
+        fig, axes = plt.subplots(3, 1, figsize=(10, 15))
+        ani = animation.FuncAnimation(fig, self.update_plot, fargs=(axes,), interval=1000)
+
+        try:
+            plt.tight_layout()
+            plt.show()
+        except KeyboardInterrupt:
+            print("🛑 Exiting...")
+            self.running = False
 
 if __name__ == "__main__":
-    if detect_esp32():
-        simulator = FlightSimulator()
-        simulator.run()
-
+    try:
+        port = FlightControllerVisualizer.detect_esp32()
+        if port:
+            visualizer = FlightControllerVisualizer(port)
+            visualizer.run()
+        else:
+            print("❌ No ESP32 detected. Please connect an ESP32 and try again.")
+    except KeyboardInterrupt:
+        print("👋 Clean exit.")
